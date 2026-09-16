@@ -4,12 +4,12 @@ on:
   push:
     branches: [main]
     paths:
-      - "ios/**"
+      - "BleyzosAI/**"          # Следим за папкой проекта, а не ios/
       - ".github/workflows/build.yml"
   pull_request:
     branches: [main]
     paths:
-      - "ios/**"
+      - "BleyzosAI/**"
       - ".github/workflows/build.yml"
   workflow_dispatch: {}
 
@@ -20,30 +20,44 @@ jobs:
 
     env:
       ARCHIVE_PATH: ""
+      PROJECT_DIR: "BleyzosAI"   # <-- Вот тут главное: папка прямо в корне
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Inspect directory structure
+      # Шаг для отладки: покажет, что реально лежит в корне
+      - name: Inspect root directory
         run: |
           pwd
           ls -la
-          ls -la ios/ 2>/dev/null || echo "Нет папки ios/"
-          find . -type d -name "*Bleyzos*" 2>/dev/null || echo "Не найдено папок с Bleyzos"
+          echo "--- Ищем папку BleyzosAI ---"
+          if [ -d "${{ env.PROJECT_DIR }}" ]; then
+            echo "✅ Папка ${{ env.PROJECT_DIR }} найдена!"
+            ls -la "${{ env.PROJECT_DIR }}"
+          else
+            echo "❌ Папка ${{ env.PROJECT_DIR }} НЕ найдена. Вот список папок:"
+            find . -type d -maxdepth 1 -not -path '.'
+          fi
 
       - name: Set ARCHIVE_PATH
         run: echo "ARCHIVE_PATH=$(mktemp -d)" >> $GITHUB_ENV
 
       - name: Select Xcode
+        # На macos-15 актуальный путь
         run: sudo xcode-select -switch /Applications/Xcode_16.4.app/Contents/Developer
 
       - name: Install XcodeGen
         run: brew install xcodegen
 
+      # Генерируем проект уже из правильной папки
       - name: Generate Xcode project
         run: xcodegen generate
-        working-directory: ios/BleyzosAI
+        working-directory: ${{ env.PROJECT_DIR }}
+
+      - name: Show simulators
+        run: xcrun simctl list devicetypes
+        working-directory: ${{ env.PROJECT_DIR }}
 
       - name: Build & Archive (no signing)
         run: |
@@ -58,7 +72,7 @@ jobs:
             PROVISIONING_PROFILE_SPECIFIER="" \
             -archivePath "${{ env.ARCHIVE_PATH }}/BleyzosAI" \
             archive
-        working-directory: ios/BleyzosAI
+        working-directory: ${{ env.PROJECT_DIR }}
 
       - name: Create ExportOptions.plist
         run: |
@@ -98,3 +112,4 @@ jobs:
           name: BleyzosAI-unsigned.ipa
           path: ${{ env.ARCHIVE_PATH }}/ipa/*.ipa
           retention-days: 7
+
