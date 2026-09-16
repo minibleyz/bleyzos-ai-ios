@@ -62,7 +62,7 @@ final class APIClient {
     func streamChat(
         url: String,
         messages: [[String: String]],
-        session: String,
+        sessionId: String,
         files: [String: Data]? = nil
     ) -> AsyncThrowingStream<StreamEvent, Error> {
         AsyncThrowingStream { continuation in
