@@ -92,7 +92,7 @@ final class APIClient {
                         // session
                         body.append("--\(boundary)\r\n".data(using: .utf8)!)
                         body.append("Content-Disposition: form-data; name=\"session\"\r\n\r\n".data(using: .utf8)!)
-                        body.append(session.data(using: .utf8)!)
+                        body.append(sessionId.data(using: .utf8)!)
                         body.append("\r\n".data(using: .utf8)!)
                         // files
                         for (filename, fileData) in files {
