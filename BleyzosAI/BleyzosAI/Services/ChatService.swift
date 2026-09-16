@@ -97,7 +97,7 @@ final class ChatService: ObservableObject {
             let stream = APIClient.shared.streamChat(
                 url: "\(apiBase)/api/chat/",
                 messages: apiMessages,
-                session: sessionId,
+                sessionId: sessionId,
                 files: files.isEmpty ? nil : files
             )
 
