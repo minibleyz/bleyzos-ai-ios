@@ -5,7 +5,7 @@ struct ContentView: View {
     @EnvironmentObject var chatService: ChatService
     @State private var showSidebar = false
 
-    var body: some Group {
+    var body: some View {
         if !authService.isAuthenticated && !authService.isGuest {
             // Не авторизован — показываем онбординг
             AuthView()
