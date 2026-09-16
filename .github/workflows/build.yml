@@ -61,7 +61,7 @@ jobs:
           xcodebuild \
             -project BleyzosAI.xcodeproj \
             -scheme BleyzosAI \
-            -destination "generic/platform=iOS Simulator" \
+            -destination "generic/platform=iOS" \
             -configuration Debug \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGN_IDENTITY="" \
