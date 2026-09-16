@@ -4,7 +4,7 @@ struct ChatView: View {
     @Binding var showSidebar: Bool
     @EnvironmentObject var chatService: ChatService
     @State private var inputText = ""
-    @State private var scrollProxy: ScrollViewReader?
+    @State private var scrollProxy: ScrollViewProxy?
 
     private let models = [
         ("gorn", "Bleyzos 2.7 Gorn", "Флагман · сложные задачи"),
