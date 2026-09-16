@@ -20,14 +20,17 @@ jobs:
 
     defaults:
       run:
-        working-directory: ios/BleyzosAI
+        working-directory: ios/BleyzosAI   # ← проверь, что эта папка реально существует в репо
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Verify working directory
+        run: pwd && ls -la
+
       - name: Select Xcode
-        run: sudo xcode-select -switch /Applications/Xcode_16.app/Contents/Developer
+        run: sudo xcode-select -switch /Applications/Xcode_16.4.app/Contents/Developer
 
       - name: Install XcodeGen
         run: brew install xcodegen
@@ -54,3 +57,4 @@ jobs:
             -configuration Debug \
             CODE_SIGNING_ALLOWED=NO \
             build
+
