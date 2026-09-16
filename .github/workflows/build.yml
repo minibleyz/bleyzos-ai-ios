@@ -55,10 +55,6 @@ jobs:
         run: xcodegen generate
         working-directory: ${{ env.PROJECT_DIR }}
 
-      - name: Show simulators
-        run: xcrun simctl list devicetypes
-        working-directory: ${{ env.PROJECT_DIR }}
-
       - name: Build & Archive (no signing)
         run: |
           set -o pipefail
