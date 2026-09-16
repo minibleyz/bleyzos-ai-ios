@@ -1,4 +1,4 @@
-name: Build iOS App
+name: Build iOS App (IPA)
 
 on:
   push:
@@ -15,19 +15,25 @@ on:
 
 jobs:
   build:
-    name: Build (Xcode)
+    name: Build & Export IPA
     runs-on: macos-15
 
-    defaults:
-      run:
-        working-directory: ios/BleyzosAI   # ← проверь, что эта папка реально существует в репо
+    env:
+      ARCHIVE_PATH: ""
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Verify working directory
-        run: pwd && ls -la
+      - name: Inspect directory structure
+        run: |
+          pwd
+          ls -la
+          ls -la ios/ 2>/dev/null || echo "Нет папки ios/"
+          find . -type d -name "*Bleyzos*" 2>/dev/null || echo "Не найдено папок с Bleyzos"
+
+      - name: Set ARCHIVE_PATH
+        run: echo "ARCHIVE_PATH=$(mktemp -d)" >> $GITHUB_ENV
 
       - name: Select Xcode
         run: sudo xcode-select -switch /Applications/Xcode_16.4.app/Contents/Developer
@@ -37,11 +43,9 @@ jobs:
 
       - name: Generate Xcode project
         run: xcodegen generate
+        working-directory: ios/BleyzosAI
 
-      - name: Show available simulators
-        run: xcrun simctl list devicetypes
-
-      - name: Build for iOS Simulator
+      - name: Build & Archive (no signing)
         run: |
           set -o pipefail
           xcodebuild \
@@ -50,11 +54,47 @@ jobs:
             -destination "generic/platform=iOS Simulator" \
             -configuration Debug \
             CODE_SIGNING_ALLOWED=NO \
-            build | xcpretty || xcodebuild \
-            -project BleyzosAI.xcodeproj \
-            -scheme BleyzosAI \
-            -destination "generic/platform=iOS Simulator" \
-            -configuration Debug \
-            CODE_SIGNING_ALLOWED=NO \
-            build
+            CODE_SIGN_IDENTITY="" \
+            PROVISIONING_PROFILE_SPECIFIER="" \
+            -archivePath "${{ env.ARCHIVE_PATH }}/BleyzosAI" \
+            archive
+        working-directory: ios/BleyzosAI
 
+      - name: Create ExportOptions.plist
+        run: |
+          cat > ${{ env.ARCHIVE_PATH }}/ExportOptions.plist <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>development</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>signingCertificate</key>
+            <string></string>
+            <key>provisioningProfileSpecifier</key>
+            <string></string>
+            <key>compileBitcode</key>
+            <false/>
+            <key>stripSwiftSymbols</key>
+            <false/>
+          </dict>
+          </plist>
+          EOF
+
+      - name: Export IPA
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -exportArchive \
+            -archivePath "${{ env.ARCHIVE_PATH }}/BleyzosAI.xcarchive" \
+            -exportOptionsPlist "${{ env.ARCHIVE_PATH }}/ExportOptions.plist" \
+            -exportPath "${{ env.ARCHIVE_PATH }}/ipa"
+
+      - name: Upload IPA as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BleyzosAI-unsigned.ipa
+          path: ${{ env.ARCHIVE_PATH }}/ipa/*.ipa
+          retention-days: 7
