@@ -16,8 +16,6 @@ struct ChatInputView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Divider()
-
             // Прикреплённые файлы
             if !attachedFiles.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -43,18 +41,18 @@ struct ChatInputView: View {
                         }
                     }
                     .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
                 }
+                .padding(.top, 8)
             }
 
-            // Поле ввода
-            HStack(alignment: .bottom, spacing: 10) {
+            // Поле ввода — карточка со светлым фоном и тонкой границей, как на вебе
+            HStack(alignment: .bottom, spacing: 8) {
                 // Кнопка прикрепить
                 Button {
                     showFilePicker = true
                 } label: {
                     Image(systemName: "paperclip")
-                        .font(.system(size: 20))
+                        .font(.system(size: 17, weight: .regular))
                         .foregroundStyle(Color.bleyzosMuted)
                         .frame(width: 36, height: 36)
                 }
@@ -63,33 +61,37 @@ struct ChatInputView: View {
                 // Текстовое поле
                 ZStack(alignment: .topLeading) {
                     if text.isEmpty {
-                        Text("Сообщение...")
-                            .foregroundStyle(Color.bleyzosMuted.opacity(0.5))
-                            .padding(.horizontal, 4)
+                        Text("Спросите что-нибудь у Bleyzos AI…")
+                            .font(.bleyzosBody)
+                            .fontWeight(.regular)
+                            .foregroundStyle(Color.bleyzosMuted.opacity(0.7))
+                            .padding(.horizontal, 5)
                             .padding(.vertical, 8)
+                            .allowsHitTesting(false)
                     }
 
                     TextEditor(text: $text)
                         .focused($isFocused)
                         .font(.bleyzosBody)
+                        .fontWeight(.regular)
+                        .foregroundStyle(Color.bleyzosInk)
                         .scrollContentBackground(.hidden)
                         .frame(minHeight: 36, maxHeight: 120)
-                        .padding(.horizontal, 2)
+                        .padding(.horizontal, 1)
                         .padding(.vertical, 6)
                 }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 4)
-                .background(Color.bleyzosAccent)
-                .clipShape(RoundedRectangle.bleyzosMedium)
+                .padding(.vertical, 2)
 
                 // Кнопка отправить / стоп
                 if streaming {
                     Button(action: onStop) {
-                        Image(systemName: "stop.circle.fill")
-                            .font(.system(size: 32))
-                            .foregroundStyle(Color.bleyzosError)
+                        Image(systemName: "square.fill")
+                            .font(.system(size: 14))
+                            .foregroundStyle(Color.bleyzosInk)
+                            .frame(width: 32, height: 32)
+                            .background(Color.bleyzosAccent)
+                            .clipShape(RoundedRectangle.bleyzosSmall)
                     }
-                    .frame(width: 36, height: 36)
                 } else {
                     Button {
                         let msg = text
@@ -98,17 +100,31 @@ struct ChatInputView: View {
                         attachedFiles = [:]
                         onSend(msg, files)
                     } label: {
-                        Image(systemName: "arrow.up.circle.fill")
-                            .font(.system(size: 32))
-                            .foregroundStyle(canSend ? Color.bleyzosBrand : Color.bleyzosMuted.opacity(0.3))
+                        Image(systemName: "arrow.up")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 32, height: 32)
+                            .background(canSend ? Color.bleyzosInk : Color.bleyzosMuted.opacity(0.3))
+                            .clipShape(RoundedRectangle.bleyzosSmall)
                     }
                     .disabled(!canSend)
-                    .frame(width: 36, height: 36)
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .background(Color.bleyzosBg)
+            .padding(8)
+            .background(Color.bleyzosCard)
+            .overlay(
+                RoundedRectangle.bleyzosMedium
+                    .stroke(Color.bleyzosBorder, lineWidth: 1)
+            )
+            .clipShape(RoundedRectangle.bleyzosMedium)
+            .padding(.horizontal, 12)
+            .padding(.top, 10)
+
+            Text("Bleyzos AI может ошибаться — проверяйте важную информацию.")
+                .font(.system(size: 11))
+                .foregroundStyle(Color.bleyzosMuted.opacity(0.8))
+                .padding(.top, 6)
+                .padding(.bottom, 10)
         }
         .background(Color.bleyzosBg)
         .fileImporter(
