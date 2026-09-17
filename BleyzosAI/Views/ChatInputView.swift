@@ -54,7 +54,7 @@ struct ChatInputView: View {
                     Image(systemName: "paperclip")
                         .font(.system(size: 17, weight: .regular))
                         .foregroundStyle(Color.bleyzosMuted)
-                        .frame(width: 36, height: 36)
+                        .frame(width: 32, height: 32)
                 }
                 .disabled(streaming)
 
@@ -66,7 +66,7 @@ struct ChatInputView: View {
                             .fontWeight(.regular)
                             .foregroundStyle(Color.bleyzosMuted.opacity(0.7))
                             .padding(.horizontal, 5)
-                            .padding(.vertical, 8)
+                            .padding(.vertical, 2)
                             .allowsHitTesting(false)
                     }
 
@@ -76,11 +76,10 @@ struct ChatInputView: View {
                         .fontWeight(.regular)
                         .foregroundStyle(Color.bleyzosInk)
                         .scrollContentBackground(.hidden)
-                        .frame(minHeight: 36, maxHeight: 120)
+                        .frame(minHeight: 22, maxHeight: 120)
                         .padding(.horizontal, 1)
-                        .padding(.vertical, 6)
+                        .padding(.vertical, 0)
                 }
-                .padding(.vertical, 2)
 
                 // Кнопка отправить / стоп
                 if streaming {
@@ -110,7 +109,8 @@ struct ChatInputView: View {
                     .disabled(!canSend)
                 }
             }
-            .padding(8)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
             .background(Color.bleyzosCard)
             .overlay(
                 RoundedRectangle.bleyzosMedium
