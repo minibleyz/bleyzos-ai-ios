@@ -93,15 +93,6 @@ jobs:
           </plist>
           EOF
 
-      - name: Export IPA
-        run: |
-          set -o pipefail
-          xcodebuild \
-            -exportArchive \
-            -archivePath "${{ env.ARCHIVE_PATH }}/BleyzosAI.xcarchive" \
-            -exportOptionsPlist "${{ env.ARCHIVE_PATH }}/ExportOptions.plist" \
-            -exportPath "${{ env.ARCHIVE_PATH }}/ipa"
-
       - name: Upload IPA as artifact
         uses: actions/upload-artifact@v4
         with:
