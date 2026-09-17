@@ -6,13 +6,12 @@ struct ContentView: View {
     @State private var showSidebar = false
 
     var body: some View {
-        if !authService.isAuthenticated && !authService.isGuest {
-            // Не авторизован — показываем онбординг
-            AuthView()
-        } else {
-            // Авторизован — показываем чат
-            mainChatView
-        }
+        // Как на вебе: приложение сразу открывается в чате (гостем по умолчанию).
+        // Экран входа — необязательная модалка, а не блокирующий гейт.
+        mainChatView
+            .sheet(isPresented: $authService.showAuthSheet) {
+                AuthView()
+            }
     }
 
     private var mainChatView: some View {
