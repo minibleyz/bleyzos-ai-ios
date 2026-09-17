@@ -10,9 +10,20 @@ struct SidebarView: View {
             // Header
             VStack(spacing: 0) {
                 HStack {
-                    Text("Bleyzos AI")
-                        .font(.bleyzosHeadline)
-                        .foregroundStyle(Color.bleyzosInk)
+                    // Логотип — как на вебе (cdn.bleyzos.ru/brand.png)
+                    AsyncImage(url: URL(string: "https://cdn.bleyzos.ru/brand.png")) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .scaledToFit()
+                                .frame(height: 26)
+                        default:
+                            Text("Bleyzos AI")
+                                .font(.bleyzosHeadline)
+                                .foregroundStyle(Color.bleyzosInk)
+                        }
+                    }
                     Spacer()
                 }
                 .padding(.horizontal, 20)
