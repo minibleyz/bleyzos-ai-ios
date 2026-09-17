@@ -109,7 +109,7 @@ final class APIClient {
                         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
                         let payload: [String: Any] = [
                             "messages": messages,
-                            "session": session,
+                            "session": sessionId,
                         ]
                         request.httpBody = try JSONSerialization.data(withJSONObject: payload)
                     }
