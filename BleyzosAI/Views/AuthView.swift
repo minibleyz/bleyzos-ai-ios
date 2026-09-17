@@ -1,83 +1,75 @@
 import SwiftUI
 
+/// Модалка входа — открывается по требованию (кнопка "Войти" в сайдбаре),
+/// не блокирует запуск приложения. Гость — режим по умолчанию.
 struct AuthView: View {
     @EnvironmentObject var authService: AuthService
-    @State private var showDeviceAuth = false
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         ZStack {
             Color.bleyzosBg.ignoresSafeArea()
 
             VStack(spacing: 0) {
+                // Закрыть
+                HStack {
+                    Spacer()
+                    Button {
+                        authService.logout() // отменяем незавершённую попытку входа, остаёмся гостем
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 24))
+                            .foregroundStyle(Color.bleyzosMuted)
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 16)
+
                 Spacer()
 
                 // Логотип
                 VStack(spacing: 12) {
                     Image(systemName: "brain.head.profile")
-                        .font(.system(size: 56))
+                        .font(.system(size: 48))
                         .foregroundStyle(Color.bleyzosBrand)
 
                     Text("Bleyzos AI")
                         .font(.bleyzosTitleLarge)
                         .foregroundStyle(Color.bleyzosInk)
 
-                    Text("Умный ассистент для кода,\nтекстов и задач")
+                    Text("Один аккаунт Bleyzos для всей экосистемы.\nБез входа диалоги хранятся 14 дней, с входом — постоянно.")
                         .font(.bleyzosBody)
                         .foregroundStyle(Color.bleyzosMuted)
                         .multilineTextAlignment(.center)
                 }
-                .padding(.bottom, 48)
+                .padding(.horizontal, 32)
+                .padding(.bottom, 40)
 
-                // Кнопки
-                VStack(spacing: 14) {
-                    // Войти
-                    Button {
-                        Task { await authService.startDeviceAuth() }
-                        withAnimation { showDeviceAuth = true }
-                    } label: {
-                        HStack {
-                            Image(systemName: "person.crop.circle")
-                                .font(.system(size: 18))
-                            Text("Войти через Bleyzos")
-                                .font(.bleyzosHeadline)
-                        }
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(Color.bleyzosInk)
-                        .clipShape(RoundedRectangle.bleyzosMedium)
+                // Войти
+                Button {
+                    Task { await authService.startDeviceAuth() }
+                } label: {
+                    HStack {
+                        Image(systemName: "person.crop.circle")
+                            .font(.system(size: 18))
+                        Text("Войти через Bleyzos")
+                            .font(.bleyzosHeadline)
                     }
-
-                    // Гость
-                    Button {
-                        withAnimation {
-                            authService.continueAsGuest()
-                        }
-                    } label: {
-                        HStack {
-                            Image(systemName: "person")
-                                .font(.system(size: 18))
-                            Text("Продолжить как гость")
-                                .font(.bleyzosHeadline)
-                        }
-                        .foregroundStyle(Color.bleyzosInk)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(Color.bleyzosCard)
-                        .overlay(
-                            RoundedRectangle.bleyzosMedium
-                                .stroke(Color.bleyzosBorder, lineWidth: 1)
-                        )
-                        .clipShape(RoundedRectangle.bleyzosMedium)
-                    }
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(Color.bleyzosInk)
+                    .clipShape(RoundedRectangle.bleyzosMedium)
                 }
                 .padding(.horizontal, 32)
 
                 Spacer()
+                Spacer()
             }
 
             // Device Auth Sheet
-            if showDeviceAuth, authService.isAuthenticating {
+            if authService.isAuthenticating || authService.deviceAuth != nil || authService.authError != nil {
                 deviceAuthSheet
             }
         }
@@ -89,7 +81,8 @@ struct AuthView: View {
                 .ignoresSafeArea()
                 .onTapGesture {
                     if !authService.isAuthenticating {
-                        withAnimation { showDeviceAuth = false }
+                        authService.deviceAuth = nil
+                        authService.authError = nil
                     }
                 }
 
@@ -100,7 +93,6 @@ struct AuthView: View {
                         .font(.bleyzosHeadline)
                     Spacer()
                     Button {
-                        withAnimation { showDeviceAuth = false }
                         authService.logout()
                     } label: {
                         Image(systemName: "xmark.circle.fill")
@@ -200,5 +192,8 @@ struct AuthView: View {
         }
         .animation(.easeInOut(duration: 0.25), value: authService.isAuthenticating)
         .animation(.easeInOut(duration: 0.25), value: authService.deviceAuth != nil)
+        .onChange(of: authService.isAuthenticated) { authed in
+            if authed { dismiss() }
+        }
     }
 }
