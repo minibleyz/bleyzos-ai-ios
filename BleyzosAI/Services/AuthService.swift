@@ -9,6 +9,8 @@ final class AuthService: ObservableObject {
     @Published var isAuthenticating = false
     @Published var authError: String?
     @Published var deviceAuth: DeviceAuthResponse?
+    /// Показывать модалку "Войти через Bleyzos" поверх чата (как на вебе — вход не блокирует старт).
+    @Published var showAuthSheet = false
 
     private let apiBase: String
     private let credentialsKey = "bleyzos_credentials"
@@ -52,12 +54,14 @@ final class AuthService: ObservableObject {
     /// Выйти
     func logout() {
         isAuthenticated = false
-        isGuest = false
         user = nil
         deviceAuth = nil
         pollTask?.cancel()
         pollTask = nil
         clearCredentials()
+        // После выхода остаёмся в приложении как гость — не показываем блокирующий гейт.
+        isGuest = true
+        saveCredentials()
     }
 
     /// Скопировать user_code в буфер
@@ -103,6 +107,7 @@ final class AuthService: ObservableObject {
                             self.isGuest = false
                             self.isAuthenticating = false
                             self.deviceAuth = nil
+                            self.showAuthSheet = false
                             saveCredentials(token: token, user: user)
                             pollTask?.cancel()
                             return
@@ -142,7 +147,9 @@ final class AuthService: ObservableObject {
             self.user = creds.user
             self.isAuthenticated = true
             self.isGuest = false
-        } else if UserDefaults.standard.bool(forKey: "bleyzos_is_guest") {
+        } else {
+            // Как на вебе: без входа приложение сразу открывается в режиме гостя,
+            // войти можно в любой момент через модалку "Войти через Bleyzos".
             self.isGuest = true
         }
     }
