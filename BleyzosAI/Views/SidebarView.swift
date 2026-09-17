@@ -121,9 +121,9 @@ struct SidebarView: View {
                         Spacer()
 
                         Button {
-                            showSidebar = false
-                            // Показать экран авторизации
-                            authService.logout()
+                            // Открываем модалку "Войти через Bleyzos" — раньше здесь по ошибке
+                            // вызывался logout(), который просто сбрасывал гостя.
+                            authService.showAuthSheet = true
                         } label: {
                             Text("Войти")
                                 .font(.bleyzosCaption.weight(.medium))
