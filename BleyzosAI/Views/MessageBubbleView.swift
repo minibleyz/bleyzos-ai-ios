@@ -66,29 +66,53 @@ struct MessageBubbleView: View {
             .clipShape(RoundedRectangle.bleyzosMedium)
     }
 
+    /// Безопасный однопроходный парсер: строим результат из фрагментов вместо
+    /// повторной мутации AttributedString по "протухшим" диапазонам —
+    /// это вызывало краш (Fatal error: Invalid index) на некоторых текстах.
     private func parseSimpleMarkdown(_ text: String) -> AttributedString {
-        var result = AttributedString(text)
+        var result = AttributedString()
+        var remaining = Substring(text)
 
-        // Bold: **text**
-        while let boldRange = result.range(of: "**") {
-            guard let endRange = result[boldRange.upperBound...].range(of: "**") else { break }
-            let contentRange = boldRange.upperBound..<endRange.lowerBound
+        while !remaining.isEmpty {
+            let boldRange = remaining.range(of: "**")
+            let codeRange = remaining.range(of: "`")
 
-            result[contentRange].font = .bleyzosBody.bold()
-            result.removeSubrange(endRange)
-            result.removeSubrange(boldRange)
-        }
+            guard boldRange != nil || codeRange != nil else {
+                result += AttributedString(remaining)
+                break
+            }
 
-        // Inline code: `code`
-        while let codeRange = result.range(of: "`") {
-            guard let endRange = result[codeRange.upperBound...].range(of: "`") else { break }
-            let contentRange = codeRange.upperBound..<endRange.lowerBound
+            let useBold: Bool
+            if let b = boldRange, let c = codeRange {
+                useBold = b.lowerBound <= c.lowerBound
+            } else {
+                useBold = boldRange != nil
+            }
 
-            result[contentRange].font = .bleyzosCode
-            result[contentRange].foregroundColor = Color.bleyzosBrand
-            result[contentRange].backgroundColor = Color.bleyzosAccent
-            result.removeSubrange(endRange)
-            result.removeSubrange(codeRange)
+            let marker = useBold ? "**" : "`"
+            let markerRange = useBold ? boldRange! : codeRange!
+
+            // Текст до маркера — как есть
+            result += AttributedString(remaining[remaining.startIndex..<markerRange.lowerBound])
+
+            let afterMarker = remaining[markerRange.upperBound...]
+            if let endRange = afterMarker.range(of: marker) {
+                let content = afterMarker[afterMarker.startIndex..<endRange.lowerBound]
+                var attr = AttributedString(content)
+                if useBold {
+                    attr.font = .bleyzosBody.bold()
+                } else {
+                    attr.font = .bleyzosCode
+                    attr.foregroundColor = Color.bleyzosBrand
+                    attr.backgroundColor = Color.bleyzosAccent
+                }
+                result += attr
+                remaining = afterMarker[endRange.upperBound...]
+            } else {
+                // Закрывающего маркера нет — показываем как есть
+                result += AttributedString(marker)
+                remaining = afterMarker
+            }
         }
 
         return result
