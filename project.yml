@@ -17,6 +17,7 @@ targets:
     platform: iOS
     sources:
       - path: BleyzosAI
+      - path: Fonts
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: ru.bleyzos.ai
@@ -30,3 +31,13 @@ targets:
         INFOPLIST_KEY_UILaunchScreen_Generation: true
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait"
+    info:
+      properties:
+        # Шрифты бренда (Onest / Unbounded — как на вебе), файлы лежат в /Fonts
+        UIAppFonts:
+          - Onest-Regular.ttf
+          - Onest-Medium.ttf
+          - Onest-SemiBold.ttf
+          - Onest-Bold.ttf
+          - Unbounded-Bold.ttf
+          - Unbounded-Black.ttf
