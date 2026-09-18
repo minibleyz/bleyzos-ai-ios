@@ -146,6 +146,7 @@ struct ChatView: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 16)
             }
+            .bleyzosNoScrollEdgeEffect()
             .onChange(of: chatService.messages.count) { _ in
                 withAnimation(.easeOut(duration: 0.3)) {
                     proxy.scrollTo("bottom", anchor: .bottom)
