@@ -1,5 +1,12 @@
 import SwiftUI
 
+private struct InputHeightPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 22
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
 struct ChatInputView: View {
     @Binding var text: String
     let onSend: (String, [String: Data]) -> Void
@@ -9,6 +16,14 @@ struct ChatInputView: View {
     @FocusState private var isFocused: Bool
     @State private var showFilePicker = false
     @State private var attachedFiles: [String: Data] = [:]
+    @State private var measuredTextHeight: CGFloat = 22
+
+    private let minInputHeight: CGFloat = 22
+    private let maxInputHeight: CGFloat = 120
+
+    private var inputHeight: CGFloat {
+        min(max(measuredTextHeight, minInputHeight), maxInputHeight)
+    }
 
     private var canSend: Bool {
         (!text.trimmingCharacters(in: .whitespaces).isEmpty || !attachedFiles.isEmpty) && !streaming
@@ -45,7 +60,7 @@ struct ChatInputView: View {
                 .padding(.top, 8)
             }
 
-            // Поле ввода — карточка со светлым фоном, без обводки (убрали полосу сверху)
+            // Поле ввода — карточка со светлым фоном, без обводки
             HStack(alignment: .bottom, spacing: 8) {
                 // Кнопка прикрепить
                 Button {
@@ -58,10 +73,10 @@ struct ChatInputView: View {
                 }
                 .disabled(streaming)
 
-                // Текстовое поле — высота подстраивается под содержимое через
-                // невидимый Text-«линейку» того же шрифта, т.к. у TextEditor
-                // нет собственного intrinsic-размера и он иначе всегда
-                // растягивается до maxHeight.
+                // Текстовое поле. Реальная высота меряется невидимым Text того
+                // же шрифта через GeometryReader/PreferenceKey (у самого
+                // TextEditor нет intrinsic-размера — без явного measured
+                // height он всегда растягивается на maxHeight, даже пустой).
                 ZStack(alignment: .topLeading) {
                     Text(text.isEmpty ? " " : text)
                         .font(.bleyzosBody)
@@ -70,6 +85,14 @@ struct ChatInputView: View {
                         .padding(.vertical, 0)
                         .opacity(0)
                         .allowsHitTesting(false)
+                        .background(
+                            GeometryReader { geo in
+                                Color.clear.preference(
+                                    key: InputHeightPreferenceKey.self,
+                                    value: geo.size.height
+                                )
+                            }
+                        )
 
                     if text.isEmpty {
                         Text("Спросите что-нибудь у Bleyzos AI…")
@@ -89,8 +112,12 @@ struct ChatInputView: View {
                         .scrollContentBackground(.hidden)
                         .padding(.horizontal, 1)
                         .padding(.vertical, 0)
+                        .frame(height: inputHeight)
                 }
-                .frame(minHeight: 22, maxHeight: 120)
+                .frame(height: inputHeight)
+                .onPreferenceChange(InputHeightPreferenceKey.self) { newHeight in
+                    measuredTextHeight = newHeight
+                }
 
                 // Кнопка отправить / стоп
                 if streaming {
