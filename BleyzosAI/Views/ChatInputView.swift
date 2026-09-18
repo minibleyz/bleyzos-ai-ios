@@ -58,8 +58,19 @@ struct ChatInputView: View {
                 }
                 .disabled(streaming)
 
-                // Текстовое поле
+                // Текстовое поле — высота подстраивается под содержимое через
+                // невидимый Text-«линейку» того же шрифта, т.к. у TextEditor
+                // нет собственного intrinsic-размера и он иначе всегда
+                // растягивается до maxHeight.
                 ZStack(alignment: .topLeading) {
+                    Text(text.isEmpty ? " " : text)
+                        .font(.bleyzosBody)
+                        .fontWeight(.regular)
+                        .padding(.horizontal, 1)
+                        .padding(.vertical, 0)
+                        .opacity(0)
+                        .allowsHitTesting(false)
+
                     if text.isEmpty {
                         Text("Спросите что-нибудь у Bleyzos AI…")
                             .font(.bleyzosBody)
@@ -76,10 +87,10 @@ struct ChatInputView: View {
                         .fontWeight(.regular)
                         .foregroundStyle(Color.bleyzosInk)
                         .scrollContentBackground(.hidden)
-                        .frame(minHeight: 22, maxHeight: 120)
                         .padding(.horizontal, 1)
                         .padding(.vertical, 0)
                 }
+                .frame(minHeight: 22, maxHeight: 120)
 
                 // Кнопка отправить / стоп
                 if streaming {
