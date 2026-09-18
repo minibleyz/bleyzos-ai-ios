@@ -57,3 +57,23 @@ extension RoundedRectangle {
     static let bleyzosLarge = RoundedRectangle(cornerRadius: 18, style: .continuous)
     static let bleyzosXL = RoundedRectangle(cornerRadius: 22, style: .continuous)
 }
+
+// MARK: - Scroll Edge Effect (iOS 18+)
+//
+// В iOS 18 SwiftUI по умолчанию рисует у края ScrollView, который упирается
+// в соседний фиксированный UI (например, поле ввода снизу), полупрозрачную
+// полосу-«эффект края» (scroll edge effect). Раньше такого не было, отсюда
+// внезапная «полоса сверху» над ChatInputView. Отключаем этот системный эффект,
+// чтобы фон оставался сплошным без артефактов. На более старых iOS модификатор
+// недоступен — тогда просто ничего не делаем.
+
+extension View {
+    @ViewBuilder
+    func bleyzosNoScrollEdgeEffect() -> some View {
+        if #available(iOS 18.0, *) {
+            self.scrollEdgeEffectStyle(.hard, for: .all)
+        } else {
+            self
+        }
+    }
+}
