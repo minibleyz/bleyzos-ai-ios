@@ -33,10 +33,11 @@ struct MessageBubbleView: View {
                 if message.role == .user && isEditing {
                     editorView
                 } else {
-                    // Parts (текст + инструменты)
+                    // Parts (текст + инструменты). Идентифицируем по позиции:
+                    // у текстовых частей id на основе текста менялся бы на каждый токен.
                     if let parts = message.parts, !parts.isEmpty {
-                        ForEach(parts) { part in
-                            switch part {
+                        ForEach(Array(parts.enumerated()), id: \.offset) { entry in
+                            switch entry.element {
                             case .text(let text):
                                 if !text.isEmpty {
                                     markdownText(text)
