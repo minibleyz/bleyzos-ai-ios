@@ -113,7 +113,14 @@ struct ChatView: View {
                             MessageBubbleView(
                                 message: message,
                                 isStreaming: chatService.isStreaming &&
-                                    message.id == chatService.messages.last?.id
+                                    message.id == chatService.messages.last?.id,
+                                onEdit: { msg in
+                                    // Убираем это сообщение и всё, что шло после
+                                    // (включая ответ ассистента), и подставляем
+                                    // текст в поле ввода для повторной отправки.
+                                    chatService.removeMessages(from: msg.id)
+                                    inputText = msg.content
+                                }
                             )
                             .id(message.id)
                         }
