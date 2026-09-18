@@ -160,7 +160,10 @@ struct ChatInputView: View {
                 .padding(.top, 6)
                 .padding(.bottom, 10)
         }
-        .background(Color.bleyzosBg.ignoresSafeArea(edges: .bottom))
+        // Фон без собственного ignoresSafeArea — растяжку под safe area делает
+        // только родитель (ChatView), чтобы не было шва на стыке двух
+        // независимо растянутых фоновых слоёв.
+        .background(Color.bleyzosBg)
         .fileImporter(
             isPresented: $showFilePicker,
             allowedContentTypes: [.data],
