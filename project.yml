@@ -32,6 +32,7 @@ targets:
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait"
     info:
+      path: Info.plist
       properties:
         # Шрифты бренда (Onest / Unbounded — как на вебе), файлы лежат в /Fonts
         UIAppFonts:
