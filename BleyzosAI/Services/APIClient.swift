@@ -134,33 +134,23 @@ final class APIClient {
                     let (bytes, response) = try await streamSession.bytes(for: request)
                     try checkHTTPResponse(response, data: nil)
 
-                    var buffer = ""
+                    // bytes.lines уже отдаёт готовые, очищенные от "\n" строки -
+                    // сервер шлёт ровно один JSON-объект на строку (NDJSON), так
+                    // что дополнительное разбиение по "\n" здесь не нужно и только
+                    // портит данные (см. коммит с фиксом).
                     for try await line in bytes.lines {
-                        buffer += line
-                        let parts = buffer.components(separatedBy: "\n")
-                        buffer = parts.last ?? ""
+                        let trimmed = line.trimmingCharacters(in: .whitespaces)
+                        guard !trimmed.isEmpty,
+                              let data = trimmed.data(using: .utf8),
+                              let event = try? decoder.decode(StreamEvent.self, from: data)
+                        else { continue }
 
-                        for part in parts.dropLast() {
-                            let trimmed = part.trimmingCharacters(in: .whitespaces)
-                            guard !trimmed.isEmpty,
-                                  let data = trimmed.data(using: .utf8),
-                                  let event = try? decoder.decode(StreamEvent.self, from: data)
-                            else { continue }
-
-                            continuation.yield(event)
-
-                            if case .done = event {
-                                continuation.finish()
-                                return
-                            }
-                        }
-                    }
-
-                    // Process remaining buffer
-                    if !buffer.trimmingCharacters(in: .whitespaces).isEmpty,
-                       let data = buffer.data(using: .utf8),
-                       let event = try? decoder.decode(StreamEvent.self, from: data) {
                         continuation.yield(event)
+
+                        if case .done = event {
+                            continuation.finish()
+                            return
+                        }
                     }
 
                     continuation.finish()
