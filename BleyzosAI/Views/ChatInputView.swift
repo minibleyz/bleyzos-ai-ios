@@ -20,6 +20,11 @@ struct ChatInputView: View {
 
     private let minInputHeight: CGFloat = 22
     private let maxInputHeight: CGFloat = 120
+    // Общий горизонтальный отступ, единый для плейсхолдера, «линейки»-Text
+    // для измерения высоты и видимого текста в TextEditor — раньше они не
+    // совпадали (5/2 у плейсхолдера против 1/0 у эдитора), из-за чего текст
+    // после ввода визуально «съезжал» относительно плейсхолдера и иконок.
+    private let textHorizontalPadding: CGFloat = 4
 
     private var inputHeight: CGFloat {
         min(max(measuredTextHeight, minInputHeight), maxInputHeight)
@@ -74,15 +79,16 @@ struct ChatInputView: View {
                 .disabled(streaming)
 
                 // Текстовое поле. Реальная высота меряется невидимым Text того
-                // же шрифта через GeometryReader/PreferenceKey (у самого
-                // TextEditor нет intrinsic-размера — без явного measured
-                // height он всегда растягивается на maxHeight, даже пустой).
+                // же шрифта через GeometryReader/PreferenceKey. У TextEditor
+                // есть собственные встроенные отступы (~8pt сверху/снизу,
+                // ~5pt по бокам — lineFragmentPadding), которые SwiftUI не
+                // даёт убрать напрямую, поэтому компенсируем их отрицательным
+                // padding, чтобы текст встал вровень с плейсхолдером.
                 ZStack(alignment: .topLeading) {
                     Text(text.isEmpty ? " " : text)
                         .font(.bleyzosBody)
                         .fontWeight(.regular)
-                        .padding(.horizontal, 1)
-                        .padding(.vertical, 0)
+                        .padding(.horizontal, textHorizontalPadding)
                         .opacity(0)
                         .allowsHitTesting(false)
                         .background(
@@ -99,8 +105,7 @@ struct ChatInputView: View {
                             .font(.bleyzosBody)
                             .fontWeight(.regular)
                             .foregroundStyle(Color.bleyzosMuted.opacity(0.7))
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 2)
+                            .padding(.horizontal, textHorizontalPadding)
                             .allowsHitTesting(false)
                     }
 
@@ -110,8 +115,8 @@ struct ChatInputView: View {
                         .fontWeight(.regular)
                         .foregroundStyle(Color.bleyzosInk)
                         .scrollContentBackground(.hidden)
-                        .padding(.horizontal, 1)
-                        .padding(.vertical, 0)
+                        .padding(.horizontal, textHorizontalPadding - 5)
+                        .padding(.vertical, -8)
                         .frame(height: inputHeight)
                 }
                 .frame(height: inputHeight)
