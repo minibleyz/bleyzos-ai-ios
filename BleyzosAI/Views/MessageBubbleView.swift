@@ -1,8 +1,12 @@
 import SwiftUI
+import UIKit
 
 struct MessageBubbleView: View {
     let message: Message
     let isStreaming: Bool
+    /// Вызывается, когда пользователь выбирает "Редактировать" у своего
+    /// сообщения. Только для message.role == .user.
+    var onEdit: ((Message) -> Void)? = nil
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -53,6 +57,21 @@ struct MessageBubbleView: View {
         }
     }
 
+    /// Текст сообщения одной строкой — для копирования (склеивает .text-части).
+    private var plainText: String {
+        if let parts = message.parts, !parts.isEmpty {
+            return parts.compactMap { part -> String? in
+                if case .text(let t) = part { return t }
+                return nil
+            }.joined(separator: "\n")
+        }
+        return message.content
+    }
+
+    private func copyToClipboard() {
+        UIPasteboard.general.string = plainText
+    }
+
     @ViewBuilder
     private func markdownText(_ text: String) -> some View {
         // Простой рендерер markdown (bold, code, ссылки)
@@ -64,6 +83,21 @@ struct MessageBubbleView: View {
             .padding(.vertical, 12)
             .background(message.role == .user ? Color.bleyzosUserBubble : Color.bleyzosAssistantBubble)
             .clipShape(RoundedRectangle.bleyzosMedium)
+            .contextMenu {
+                Button {
+                    copyToClipboard()
+                } label: {
+                    Label("Копировать", systemImage: "doc.on.doc")
+                }
+
+                if message.role == .user, !isStreaming, let onEdit {
+                    Button {
+                        onEdit(message)
+                    } label: {
+                        Label("Редактировать", systemImage: "pencil")
+                    }
+                }
+            }
     }
 
     /// Безопасный однопроходный парсер: строим результат из фрагментов вместо
