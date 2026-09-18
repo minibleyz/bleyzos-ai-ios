@@ -37,7 +37,7 @@ struct ChatView: View {
                 streaming: chatService.isStreaming
             )
         }
-        .background(Color.bleyzosBg)
+        .background(Color.bleyzosBg.ignoresSafeArea(edges: .bottom))
     }
 
     // MARK: - Header
