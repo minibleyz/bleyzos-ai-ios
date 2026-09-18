@@ -77,5 +77,6 @@ struct WelcomeView: View {
                 Spacer(minLength: 40)
             }
         }
+        .bleyzosNoScrollEdgeEffect()
     }
 }
