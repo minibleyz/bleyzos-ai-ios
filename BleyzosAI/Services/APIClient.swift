@@ -19,6 +19,11 @@ enum APIClientError: LocalizedError {
 final class APIClient {
     static let shared = APIClient()
     private let session: URLSession
+    // Отдельная сессия для стриминга чата: сервер может молчать долго
+    // (облачная модель, очередь tool-раундов) прежде чем прислать
+    // следующий чанк NDJSON. Веб-клиент (fetch) не ограничен по времени -
+    // повторяем то же поведение здесь, а не обрываем соединение сами.
+    private let streamSession: URLSession
     private let decoder: JSONDecoder
 
     private init() {
@@ -26,6 +31,16 @@ final class APIClient {
         config.timeoutIntervalForRequest = 60
         config.timeoutIntervalForResource = 300
         self.session = URLSession(configuration: config)
+
+        let streamConfig = URLSessionConfiguration.default
+        // "Как в вебе": по сути без верхней границы на весь стрим.
+        // timeoutIntervalForRequest - это таймаут неактивности (сбрасывается
+        // на каждый полученный байт), а не общий лимит, так что большого
+        // значения достаточно, чтобы не резать соединение, пока сервер
+        // действительно жив.
+        streamConfig.timeoutIntervalForRequest = 24 * 60 * 60
+        streamConfig.timeoutIntervalForResource = 24 * 60 * 60
+        self.streamSession = URLSession(configuration: streamConfig)
 
         self.decoder = JSONDecoder()
     }
@@ -75,7 +90,9 @@ final class APIClient {
 
                     var request = URLRequest(url: requestURL)
                     request.httpMethod = "POST"
-                    request.timeoutInterval = 120
+                    // Своего таймаута на запрос не ставим - границы уже заданы
+                    // конфигом streamSession (см. init). Так соединение живёт,
+                    // пока сервер шлёт данные, ровно как в вебе.
 
                     if let files, !files.isEmpty {
                         // Multipart form data
@@ -114,7 +131,7 @@ final class APIClient {
                         request.httpBody = try JSONSerialization.data(withJSONObject: payload)
                     }
 
-                    let (bytes, response) = try await session.bytes(for: request)
+                    let (bytes, response) = try await streamSession.bytes(for: request)
                     try checkHTTPResponse(response, data: nil)
 
                     var buffer = ""
