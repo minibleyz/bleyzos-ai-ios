@@ -51,10 +51,8 @@ final class ChatService: ObservableObject {
     }
 
     /// Удаляет сообщение с указанным id и всё, что шло после него, в активной
-    /// сессии. Используется для редактирования: пользователь правит текст
-    /// своего сообщения, а старый "хвост" (это сообщение + последующий ответ
-    /// ассистента) убирается, после чего отредактированный текст отправляется
-    /// заново через `send`.
+    /// сессии. Оставлено для совместимости; редактирование теперь идёт через
+    /// `send(text:replacing:)`, который сохраняет старую ветку как версию.
     func removeMessages(from messageId: String) {
         stop()
         guard let sIdx = sessions.firstIndex(where: { $0.id == activeSessionId }),
@@ -65,15 +63,75 @@ final class ChatService: ObservableObject {
         saveSessions()
     }
 
-    func send(text: String, files: [String: Data] = [:]) {
+    /// Переключает версию отредактированного пользовательского сообщения
+    /// (direction: -1 — предыдущая, +1 — следующая). Как в вебе: текущая ветка
+    /// сохраняется в `variants`, а «хвост» выбранной версии восстанавливается.
+    func switchVariant(messageId: String, direction: Int) {
+        guard !isStreaming,
+              let sIdx = sessions.firstIndex(where: { $0.id == activeSessionId }),
+              let mIdx = sessions[sIdx].messages.firstIndex(where: { $0.id == messageId })
+        else { return }
+
+        let all = sessions[sIdx].messages
+        let msg = all[mIdx]
+        guard var variants = msg.variants, variants.count >= 2 else { return }
+
+        let cur = msg.variantIndex ?? 0
+        let next = cur + direction
+        guard variants.indices.contains(cur), variants.indices.contains(next) else { return }
+
+        variants[cur] = MessageVariant(content: msg.content, tail: Array(all[(mIdx + 1)...]))
+        let target = variants[next]
+
+        var switched = msg
+        switched.content = target.content
+        switched.variants = variants
+        switched.variantIndex = next
+
+        sessions[sIdx].messages = Array(all[..<mIdx]) + [switched] + target.tail
+        saveSessions()
+    }
+
+    /// Отправка сообщения. Если задан `replaceId` — это правка существующего
+    /// пользовательского сообщения: старая ветка (текст + ответы после него)
+    /// сохраняется как версия, а новый текст уходит на сервер как новая версия.
+    func send(text: String, files: [String: Data] = [:], replacing replaceId: String? = nil) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty || !files.isEmpty, !isStreaming else { return }
+        let hasContent = replaceId != nil ? !trimmed.isEmpty : (!trimmed.isEmpty || !files.isEmpty)
+        guard hasContent, !isStreaming else { return }
 
         var sessionId = activeSessionId
         var priorMessages: [Message] = []
         var retitle = true
+        var variantInfo: (variants: [MessageVariant], index: Int)?
+        var keptAttachments: [Attachment]?
 
-        if let sid = sessionId, let idx = sessions.firstIndex(where: { $0.id == sid }) {
+        if let replaceId {
+            guard let sid = activeSessionId,
+                  let sIdx = sessions.firstIndex(where: { $0.id == sid }),
+                  let mIdx = sessions[sIdx].messages.firstIndex(where: { $0.id == replaceId }),
+                  sessions[sIdx].messages[mIdx].role == .user
+            else { return }
+
+            let all = sessions[sIdx].messages
+            let oldMsg = all[mIdx]
+            priorMessages = Array(all[..<mIdx])
+
+            var list = oldMsg.variants ?? [MessageVariant(content: oldMsg.content, tail: [])]
+            let cur = oldMsg.variantIndex ?? 0
+            let snapshot = MessageVariant(content: oldMsg.content, tail: Array(all[(mIdx + 1)...]))
+            if list.indices.contains(cur) {
+                list[cur] = snapshot
+            } else {
+                list.append(snapshot)
+            }
+            list.append(MessageVariant(content: trimmed, tail: []))
+
+            variantInfo = (list, list.count - 1)
+            keptAttachments = oldMsg.attachments
+            retitle = (mIdx == 0)
+            sessionId = sid
+        } else if let sid = sessionId, let idx = sessions.firstIndex(where: { $0.id == sid }) {
             priorMessages = sessions[idx].messages
             retitle = priorMessages.isEmpty
         } else {
@@ -89,7 +147,13 @@ final class ChatService: ObservableObject {
 
         guard let sessionId else { return }
 
-        let userMsg = Message(role: .user, content: trimmed)
+        let userMsg = Message(
+            role: .user,
+            content: trimmed,
+            attachments: keptAttachments,
+            variants: variantInfo?.variants,
+            variantIndex: variantInfo?.index
+        )
         let assistantMsg = Message(role: .assistant, content: "")
 
         // Обновляем UI

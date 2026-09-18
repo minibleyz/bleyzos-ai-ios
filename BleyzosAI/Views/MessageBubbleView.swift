@@ -4,9 +4,14 @@ import UIKit
 struct MessageBubbleView: View {
     let message: Message
     let isStreaming: Bool
-    /// Вызывается, когда пользователь выбирает "Редактировать" у своего
-    /// сообщения. Только для message.role == .user.
-    var onEdit: ((Message) -> Void)? = nil
+    /// Вызывается, когда пользователь подтверждает правку своего сообщения
+    /// (новый текст). Только для message.role == .user. nil — правка недоступна.
+    var onEditSubmit: ((Message, String) -> Void)? = nil
+    /// Переключение версий отредактированного сообщения (-1 / +1). nil — недоступно.
+    var onSwitchVariant: ((Message, Int) -> Void)? = nil
+
+    @State private var isEditing = false
+    @State private var draft = ""
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -20,33 +25,42 @@ struct MessageBubbleView: View {
                     .clipShape(Circle())
             }
 
-            if message.role == .user {
+            if message.role == .user && !isEditing {
                 Spacer(minLength: 60)
             }
 
             VStack(alignment: message.role == .user ? .trailing : .leading, spacing: 8) {
-                // Parts (текст + инструменты)
-                if let parts = message.parts, !parts.isEmpty {
-                    ForEach(parts) { part in
-                        switch part {
-                        case .text(let text):
-                            if !text.isEmpty {
-                                markdownText(text)
+                if message.role == .user && isEditing {
+                    editorView
+                } else {
+                    // Parts (текст + инструменты)
+                    if let parts = message.parts, !parts.isEmpty {
+                        ForEach(parts) { part in
+                            switch part {
+                            case .text(let text):
+                                if !text.isEmpty {
+                                    markdownText(text)
+                                }
+                            case .tool(let call):
+                                ToolCallView(call: call)
                             }
-                        case .tool(let call):
-                            ToolCallView(call: call)
+                        }
+                    } else if !message.content.isEmpty {
+                        markdownText(message.content)
+                    } else if isStreaming {
+                        ThinkingIndicator()
+                    }
+
+                    // Artifacts
+                    if let artifacts = message.artifacts, !artifacts.isEmpty {
+                        ForEach(artifacts) { artifact in
+                            ArtifactChip(artifact: artifact)
                         }
                     }
-                } else if !message.content.isEmpty {
-                    markdownText(message.content)
-                } else if isStreaming {
-                    ThinkingIndicator()
-                }
 
-                // Artifacts
-                if let artifacts = message.artifacts, !artifacts.isEmpty {
-                    ForEach(artifacts) { artifact in
-                        ArtifactChip(artifact: artifact)
+                    // Переключатель версий ‹ 2/3 ›
+                    if message.role == .user, let total = message.variants?.count, total > 1 {
+                        variantSwitcher(total: total)
                     }
                 }
             }
@@ -55,6 +69,92 @@ struct MessageBubbleView: View {
                 Spacer(minLength: 60)
             }
         }
+    }
+
+    // MARK: - Inline editor
+
+    private var canSaveEdit: Bool {
+        let new = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        let old = message.content.trimmingCharacters(in: .whitespacesAndNewlines)
+        return !new.isEmpty && new != old
+    }
+
+    private var editorView: some View {
+        VStack(alignment: .trailing, spacing: 8) {
+            TextEditor(text: $draft)
+                .font(.bleyzosBody)
+                .foregroundStyle(Color.bleyzosInk)
+                .scrollContentBackground(.hidden)
+                .frame(minHeight: 80, maxHeight: 220)
+
+            HStack(spacing: 8) {
+                Spacer()
+
+                Button {
+                    isEditing = false
+                } label: {
+                    Text("Отмена")
+                        .font(.bleyzosCaption.weight(.medium))
+                        .foregroundStyle(Color.bleyzosMuted)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                }
+
+                Button {
+                    let text = draft
+                    isEditing = false
+                    onEditSubmit?(message, text)
+                } label: {
+                    Text("Отправить")
+                        .font(.bleyzosCaption.weight(.medium))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(Color.bleyzosBrand.opacity(canSaveEdit ? 1 : 0.4))
+                        .clipShape(Capsule())
+                }
+                .disabled(!canSaveEdit)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity)
+        .background(Color.bleyzosCard)
+        .clipShape(RoundedRectangle.bleyzosMedium)
+        .overlay(
+            RoundedRectangle.bleyzosMedium
+                .stroke(Color.bleyzosBrand.opacity(0.4), lineWidth: 1)
+        )
+    }
+
+    // MARK: - Variant switcher
+
+    private func variantSwitcher(total: Int) -> some View {
+        let current = (message.variantIndex ?? 0) + 1
+        let enabled = onSwitchVariant != nil
+
+        return HStack(spacing: 6) {
+            Button {
+                onSwitchVariant?(message, -1)
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 12, weight: .semibold))
+                    .frame(width: 24, height: 24)
+            }
+            .disabled(!enabled || current <= 1)
+
+            Text("\(current)/\(total)")
+                .font(.system(size: 12).monospacedDigit())
+
+            Button {
+                onSwitchVariant?(message, 1)
+            } label: {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .frame(width: 24, height: 24)
+            }
+            .disabled(!enabled || current >= total)
+        }
+        .foregroundStyle(Color.bleyzosMuted)
     }
 
     /// Текст сообщения одной строкой — для копирования (склеивает .text-части).
@@ -90,9 +190,10 @@ struct MessageBubbleView: View {
                     Label("Копировать", systemImage: "doc.on.doc")
                 }
 
-                if message.role == .user, !isStreaming, let onEdit {
+                if message.role == .user, !isStreaming, onEditSubmit != nil {
                     Button {
-                        onEdit(message)
+                        draft = message.content
+                        isEditing = true
                     } label: {
                         Label("Редактировать", systemImage: "pencil")
                     }

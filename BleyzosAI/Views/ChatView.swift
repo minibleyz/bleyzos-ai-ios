@@ -94,6 +94,25 @@ struct ChatView: View {
         )
     }
 
+    // MARK: - Message actions
+
+    /// Правка своего сообщения: старая ветка сохраняется как версия.
+    /// Во время стриминга правка недоступна.
+    private var editHandler: ((Message, String) -> Void)? {
+        guard !chatService.isStreaming else { return nil }
+        return { msg, text in
+            chatService.send(text: text, replacing: msg.id)
+        }
+    }
+
+    /// Переключение версий сообщения (‹ 2/3 ›). Во время стриминга недоступно.
+    private var switchVariantHandler: ((Message, Int) -> Void)? {
+        guard !chatService.isStreaming else { return nil }
+        return { msg, direction in
+            chatService.switchVariant(messageId: msg.id, direction: direction)
+        }
+    }
+
     // MARK: - Messages
 
     private var messagesView: some View {
@@ -114,13 +133,8 @@ struct ChatView: View {
                                 message: message,
                                 isStreaming: chatService.isStreaming &&
                                     message.id == chatService.messages.last?.id,
-                                onEdit: { msg in
-                                    // Убираем это сообщение и всё, что шло после
-                                    // (включая ответ ассистента), и подставляем
-                                    // текст в поле ввода для повторной отправки.
-                                    chatService.removeMessages(from: msg.id)
-                                    inputText = msg.content
-                                }
+                                onEditSubmit: editHandler,
+                                onSwitchVariant: switchVariantHandler
                             )
                             .id(message.id)
                         }

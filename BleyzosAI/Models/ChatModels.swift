@@ -100,6 +100,13 @@ struct Artifact: Codable, Identifiable {
     var id: String { name }
 }
 
+/// Версия пользовательского сообщения (как в вебе): текст + «хвост» —
+/// всё, что шло после него в этой ветке диалога.
+struct MessageVariant: Codable {
+    var content: String
+    var tail: [Message]
+}
+
 struct Message: Codable, Identifiable {
     let id: String
     let role: Role
@@ -107,16 +114,23 @@ struct Message: Codable, Identifiable {
     var attachments: [Attachment]?
     var parts: [Part]?
     var artifacts: [Artifact]?
+    /// Все версии сообщения после редактирования (nil — сообщение не редактировалось).
+    var variants: [MessageVariant]?
+    /// Индекс текущей версии в `variants`.
+    var variantIndex: Int?
 
     init(id: String = UUID().uuidString, role: Role, content: String,
          attachments: [Attachment]? = nil, parts: [Part]? = nil,
-         artifacts: [Artifact]? = nil) {
+         artifacts: [Artifact]? = nil,
+         variants: [MessageVariant]? = nil, variantIndex: Int? = nil) {
         self.id = id
         self.role = role
         self.content = content
         self.attachments = attachments
         self.parts = parts
         self.artifacts = artifacts
+        self.variants = variants
+        self.variantIndex = variantIndex
     }
 }
 
