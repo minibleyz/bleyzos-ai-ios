@@ -20,14 +20,33 @@ extension Color {
 }
 
 // MARK: - Typography
+//
+// На вебе используются шрифты Onest (текст, font-sans) и Unbounded (акценты,
+// font-display) — см. globals.css / tailwind.config.ts проекта bleyzos-web.
+// Файлы шрифтов лежат в /Fonts и подключаются через UIAppFonts в project.yml.
+// Если по какой-то причине шрифт не встроен в бандл (например, .ttf ещё не
+// добавлен в Xcode-проект), автоматически используется системный шрифт —
+// приложение не падает и не выглядит сломанным.
+
+private func customFont(_ name: String, size: CGFloat, fallbackWeight: Font.Weight = .regular, design: Font.Design = .default) -> Font {
+    if UIFont(name: name, size: size) != nil {
+        return Font.custom(name, size: size)
+    }
+    return Font.system(size: size, weight: fallbackWeight, design: design)
+}
 
 extension Font {
-    static let bleyzosTitle = Font.system(size: 28, weight: .bold, design: .default)
-    static let bleyzosTitleLarge = Font.system(size: 34, weight: .bold, design: .default)
-    static let bleyzosHeadline = Font.system(size: 17, weight: .semibold, design: .default)
-    static let bleyzosBody = Font.system(size: 16, weight: .regular, design: .default)
-    static let bleyzosCaption = Font.system(size: 13, weight: .regular, design: .default)
+    // Onest — основной текстовый шрифт (как font-sans на вебе)
+    static let bleyzosTitle = customFont("Onest-Bold", size: 28, fallbackWeight: .bold)
+    static let bleyzosTitleLarge = customFont("Onest-Bold", size: 34, fallbackWeight: .bold)
+    static let bleyzosHeadline = customFont("OnestSemiBold-Regular", size: 17, fallbackWeight: .semibold)
+    static let bleyzosBody = customFont("Onest-Regular", size: 16, fallbackWeight: .regular)
+    static let bleyzosCaption = customFont("Onest-Regular", size: 13, fallbackWeight: .regular)
     static let bleyzosCode = Font.system(size: 14, weight: .regular, design: .monospaced)
+
+    // Unbounded — акцентный шрифт (как font-display на вебе), для заголовка Welcome
+    static let bleyzosDisplay = customFont("Unbounded-Bold", size: 32, fallbackWeight: .bold)
+    static let bleyzosDisplayBlack = customFont("UnboundedBlack-Regular", size: 32, fallbackWeight: .black)
 }
 
 // MARK: - Rounded Rectangle Helpers
