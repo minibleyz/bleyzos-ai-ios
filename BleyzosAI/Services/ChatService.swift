@@ -50,6 +50,21 @@ final class ChatService: ObservableObject {
         saveSessions()
     }
 
+    /// Удаляет сообщение с указанным id и всё, что шло после него, в активной
+    /// сессии. Используется для редактирования: пользователь правит текст
+    /// своего сообщения, а старый "хвост" (это сообщение + последующий ответ
+    /// ассистента) убирается, после чего отредактированный текст отправляется
+    /// заново через `send`.
+    func removeMessages(from messageId: String) {
+        stop()
+        guard let sIdx = sessions.firstIndex(where: { $0.id == activeSessionId }),
+              let mIdx = sessions[sIdx].messages.firstIndex(where: { $0.id == messageId })
+        else { return }
+        sessions[sIdx].messages.removeSubrange(mIdx...)
+        sessions[sIdx].updatedAt = Date()
+        saveSessions()
+    }
+
     func send(text: String, files: [String: Data] = [:]) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty || !files.isEmpty, !isStreaming else { return }
@@ -60,7 +75,7 @@ final class ChatService: ObservableObject {
 
         if let sid = sessionId, let idx = sessions.firstIndex(where: { $0.id == sid }) {
             priorMessages = sessions[idx].messages
-            retitle = false
+            retitle = priorMessages.isEmpty
         } else {
             let newSession = ChatSession(
                 title: makeTitle(trimmed.isEmpty ? files.keys.joined(separator: ", ") : trimmed)
