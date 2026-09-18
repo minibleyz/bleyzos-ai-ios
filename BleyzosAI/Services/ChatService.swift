@@ -189,6 +189,16 @@ final class ChatService: ObservableObject {
                         streamingText += v
                         updateAssistant(sessionId: sessionId, assistantId: assistantMsg.id) { msg in
                             msg.content += v
+                            // Текст тоже кладём в parts (как в вебе): если была хотя бы одна
+                            // инструментальная строка, пузырь рисует только parts, и текст
+                            // ответа пропадал бы с экрана.
+                            var parts = msg.parts ?? []
+                            if case .text(let prev)? = parts.last {
+                                parts[parts.count - 1] = .text(prev + v)
+                            } else {
+                                parts.append(.text(v))
+                            }
+                            msg.parts = parts
                         }
 
                     case .tool(let id, let name, let args):
@@ -225,10 +235,21 @@ final class ChatService: ObservableObject {
                 }
             } catch {
                 if !Task.isCancelled {
+                    // Показываем реальную причину (таймаут, HTTP-код, обрыв сети), а не
+                    // генерическое «попробуйте ещё раз».
+                    let reason = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
                     updateAssistant(sessionId: sessionId, assistantId: assistantMsg.id) { msg in
-                        if msg.content.isEmpty {
-                            msg.content = "Не удалось получить ответ. Попробуйте ещё раз."
+                        let note = msg.content.isEmpty
+                            ? "Не удалось получить ответ: \(reason)"
+                            : "\n\n⚠️ Ответ оборвался: \(reason)"
+                        msg.content += note
+                        var parts = msg.parts ?? []
+                        if case .text(let prev)? = parts.last {
+                            parts[parts.count - 1] = .text(prev + note)
+                        } else {
+                            parts.append(.text(note))
                         }
+                        msg.parts = parts
                     }
                 }
             }

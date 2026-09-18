@@ -1,10 +1,13 @@
 import Foundation
+import os
 
 enum APIClientError: LocalizedError {
     case invalidURL
     case httpError(Int, String?)
     case decodingError(Error)
     case networkError(Error)
+    case timeout(Int)
+    case emptyResponse
 
     var errorDescription: String? {
         switch self {
@@ -12,17 +15,27 @@ enum APIClientError: LocalizedError {
         case .httpError(let code, let msg): return "HTTP \(code): \(msg ?? "ошибка")"
         case .decodingError(let err): return "Ошибка декодирования: \(err.localizedDescription)"
         case .networkError(let err): return "Сеть: \(err.localizedDescription)"
+        case .timeout(let seconds): return "сервер не присылает данные уже \(seconds) с"
+        case .emptyResponse: return "сервер закрыл соединение, не прислав ни одного события"
         }
     }
 }
 
 final class APIClient {
     static let shared = APIClient()
+    private static let log = Logger(subsystem: "ru.bleyzos.ai", category: "stream")
+
+    /// Сколько секунд стрим может молчать (нет ни одного нового байта), прежде чем
+    /// мы считаем соединение зависшим и показываем ошибку. Это таймаут НЕАКТИВНОСТИ
+    /// (сбрасывается на каждый полученный байт), а не общий лимит на ответ.
+    /// Было 24 часа — из-за этого зависший запрос никогда не заканчивался ошибкой.
+    static let streamIdleTimeout: TimeInterval = 180
+
     private let session: URLSession
     // Отдельная сессия для стриминга чата: сервер может молчать долго
     // (облачная модель, очередь tool-раундов) прежде чем прислать
-    // следующий чанк NDJSON. Веб-клиент (fetch) не ограничен по времени -
-    // повторяем то же поведение здесь, а не обрываем соединение сами.
+    // следующий чанк NDJSON, поэтому общего лимита на длительность нет, только
+    // лимит на бездействие (см. streamIdleTimeout).
     private let streamSession: URLSession
     private let decoder: JSONDecoder
 
@@ -33,13 +46,8 @@ final class APIClient {
         self.session = URLSession(configuration: config)
 
         let streamConfig = URLSessionConfiguration.default
-        // "Как в вебе": по сути без верхней границы на весь стрим.
-        // timeoutIntervalForRequest - это таймаут неактивности (сбрасывается
-        // на каждый полученный байт), а не общий лимит, так что большого
-        // значения достаточно, чтобы не резать соединение, пока сервер
-        // действительно жив.
-        streamConfig.timeoutIntervalForRequest = 24 * 60 * 60
-        streamConfig.timeoutIntervalForResource = 24 * 60 * 60
+        streamConfig.timeoutIntervalForRequest = Self.streamIdleTimeout
+        streamConfig.timeoutIntervalForResource = 6 * 60 * 60
         self.streamSession = URLSession(configuration: streamConfig)
 
         self.decoder = JSONDecoder()
@@ -81,7 +89,7 @@ final class APIClient {
         files: [String: Data]? = nil
     ) -> AsyncThrowingStream<StreamEvent, Error> {
         AsyncThrowingStream { continuation in
-            Task {
+            let task = Task {
                 do {
                     guard let requestURL = URL(string: url) else {
                         continuation.finish(throwing: APIClientError.invalidURL)
@@ -90,9 +98,9 @@ final class APIClient {
 
                     var request = URLRequest(url: requestURL)
                     request.httpMethod = "POST"
-                    // Своего таймаута на запрос не ставим - границы уже заданы
-                    // конфигом streamSession (см. init). Так соединение живёт,
-                    // пока сервер шлёт данные, ровно как в вебе.
+                    request.setValue("application/x-ndjson", forHTTPHeaderField: "Accept")
+                    // Своего таймаута на запрос не ставим - границы заданы
+                    // конфигом streamSession (см. init).
 
                     if let files, !files.isEmpty {
                         // Multipart form data
@@ -131,20 +139,40 @@ final class APIClient {
                         request.httpBody = try JSONSerialization.data(withJSONObject: payload)
                     }
 
+                    let startedAt = Date()
                     let (bytes, response) = try await streamSession.bytes(for: request)
-                    try checkHTTPResponse(response, data: nil)
+                    let status = (response as? HTTPURLResponse)?.statusCode ?? -1
+                    Self.log.info("stream: HTTP \(status) через \(Date().timeIntervalSince(startedAt), format: .fixed(precision: 2)) с")
+
+                    // Не-2xx: читаем начало тела ошибки, чтобы показать причину, а не «HTTP 502».
+                    if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+                        var errorBody = Data()
+                        for try await byte in bytes {
+                            errorBody.append(byte)
+                            if errorBody.count >= 500 { break }
+                        }
+                        throw APIClientError.httpError(http.statusCode, String(data: errorBody, encoding: .utf8))
+                    }
 
                     // bytes.lines уже отдаёт готовые, очищенные от "\n" строки -
-                    // сервер шлёт ровно один JSON-объект на строку (NDJSON), так
-                    // что дополнительное разбиение по "\n" здесь не нужно и только
-                    // портит данные (см. коммит с фиксом).
+                    // сервер шлёт ровно один JSON-объект на строку (NDJSON).
+                    var received = 0
                     for try await line in bytes.lines {
                         let trimmed = line.trimmingCharacters(in: .whitespaces)
-                        guard !trimmed.isEmpty,
-                              let data = trimmed.data(using: .utf8),
-                              let event = try? decoder.decode(StreamEvent.self, from: data)
-                        else { continue }
+                        guard !trimmed.isEmpty, let data = trimmed.data(using: .utf8) else { continue }
 
+                        let event: StreamEvent
+                        do {
+                            event = try decoder.decode(StreamEvent.self, from: data)
+                        } catch {
+                            Self.log.warning("stream: не разобрана строка: \(String(trimmed.prefix(200)))")
+                            continue
+                        }
+
+                        received += 1
+                        if received == 1 {
+                            Self.log.info("stream: первое событие через \(Date().timeIntervalSince(startedAt), format: .fixed(precision: 2)) с")
+                        }
                         continuation.yield(event)
 
                         if case .done = event {
@@ -153,11 +181,28 @@ final class APIClient {
                         }
                     }
 
+                    if received == 0 {
+                        throw APIClientError.emptyResponse
+                    }
                     continuation.finish()
+                } catch is CancellationError {
+                    continuation.finish()
+                } catch let urlError as URLError where urlError.code == .cancelled {
+                    continuation.finish()
+                } catch let urlError as URLError where urlError.code == .timedOut {
+                    Self.log.error("stream: таймаут неактивности")
+                    continuation.finish(throwing: APIClientError.timeout(Int(Self.streamIdleTimeout)))
                 } catch {
+                    Self.log.error("stream: ошибка \(error.localizedDescription)")
                     continuation.finish(throwing: error)
                 }
             }
+
+            // Главное: когда потребитель отменил/бросил стрим («Стоп», новый чат, смена
+            // сессии), отменяем и внутреннюю Task — иначе соединение остаётся открытым
+            // и накапливается; после нескольких таких «сирот» новые запросы упираются
+            // в лимит соединений на хост и висят без ошибки.
+            continuation.onTermination = { _ in task.cancel() }
         }
     }
 
