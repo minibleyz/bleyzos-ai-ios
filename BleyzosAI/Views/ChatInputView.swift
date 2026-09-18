@@ -45,7 +45,7 @@ struct ChatInputView: View {
                 .padding(.top, 8)
             }
 
-            // Поле ввода — карточка со светлым фоном и тонкой границей, как на вебе
+            // Поле ввода — карточка со светлым фоном, без обводки (убрали полосу сверху)
             HStack(alignment: .bottom, spacing: 8) {
                 // Кнопка прикрепить
                 Button {
@@ -123,10 +123,6 @@ struct ChatInputView: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 5)
             .background(Color.bleyzosCard)
-            .overlay(
-                RoundedRectangle.bleyzosMedium
-                    .stroke(Color.bleyzosBorder, lineWidth: 1)
-            )
             .clipShape(RoundedRectangle.bleyzosMedium)
             .padding(.horizontal, 12)
             .padding(.top, 10)
@@ -137,7 +133,7 @@ struct ChatInputView: View {
                 .padding(.top, 6)
                 .padding(.bottom, 10)
         }
-        .background(Color.bleyzosBg)
+        .background(Color.bleyzosBg.ignoresSafeArea(edges: .bottom))
         .fileImporter(
             isPresented: $showFilePicker,
             allowedContentTypes: [.data],
