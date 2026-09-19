@@ -17,12 +17,7 @@ struct MessageBubbleView: View {
         HStack(alignment: .top, spacing: 10) {
             if message.role == .assistant {
                 // Аватар ассистента
-                Image(systemName: "brain.head.profile")
-                    .font(.system(size: 16))
-                    .foregroundStyle(Color.bleyzosBrand)
-                    .frame(width: 28, height: 28)
-                    .background(Color.bleyzosBrand.opacity(0.12))
-                    .clipShape(Circle())
+                BotAvatarView()
             }
 
             if message.role == .user && !isEditing {
@@ -398,12 +393,7 @@ struct ThinkingIndicator: View {
 struct ThinkingBubble: View {
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
-            Image(systemName: "brain.head.profile")
-                .font(.system(size: 16))
-                .foregroundStyle(Color.bleyzosBrand)
-                .frame(width: 28, height: 28)
-                .background(Color.bleyzosBrand.opacity(0.12))
-                .clipShape(Circle())
+            BotAvatarView()
 
             ThinkingIndicator()
 
