@@ -1,7 +1,7 @@
 import SwiftUI
 
 private struct InputHeightPreferenceKey: PreferenceKey {
-    static var defaultValue: CGFloat = 22
+    static var defaultValue: CGFloat = 32
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         value = nextValue()
     }
@@ -16,9 +16,15 @@ struct ChatInputView: View {
     @FocusState private var isFocused: Bool
     @State private var showFilePicker = false
     @State private var attachedFiles: [String: Data] = [:]
-    @State private var measuredTextHeight: CGFloat = 22
+    @State private var measuredTextHeight: CGFloat = 32
 
-    private let minInputHeight: CGFloat = 22
+    // Равна высоте кнопок (32pt). При HStack(alignment: .bottom) однострочный
+    // текст/плейсхолдер раньше был короче кнопок (22pt) и «прилипал» к низу
+    // ряда, оставляя пустой зазор сверху — визуально текст съезжал вниз
+    // относительно скрепки и стрелки. Сравняв минимальную высоту с кнопками,
+    // однострочный текст центруется по ним, а при росте (многострочный ввод)
+    // по-прежнему растягивается вверх, оставаясь прижатым к низу.
+    private let minInputHeight: CGFloat = 32
     private let maxInputHeight: CGFloat = 120
     // Общий горизонтальный отступ, единый для плейсхолдера, «линейки»-Text
     // для измерения высоты и видимого текста в TextEditor — раньше они не
