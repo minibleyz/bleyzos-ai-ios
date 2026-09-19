@@ -24,6 +24,7 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         MARKETING_VERSION: "1.0.0"
         CURRENT_PROJECT_VERSION: "1"
+        INFOPLIST_KEY_CFBundleDisplayName: "Bleyzos AI"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: true
@@ -34,6 +35,7 @@ targets:
     info:
       path: Info.plist
       properties:
+        CFBundleDisplayName: "Bleyzos AI"
         # Шрифты бренда (Onest / Unbounded — как на вебе), файлы лежат в /Fonts
         UIAppFonts:
           - Onest-Regular.ttf

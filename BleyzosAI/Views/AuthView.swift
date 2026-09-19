@@ -30,9 +30,7 @@ struct AuthView: View {
 
                 // Логотип
                 VStack(spacing: 12) {
-                    Image(systemName: "brain.head.profile")
-                        .font(.system(size: 48))
-                        .foregroundStyle(Color.bleyzosBrand)
+                    BotAvatarView(size: 72)
 
                     Text("Bleyzos AI")
                         .font(.bleyzosTitleLarge)
