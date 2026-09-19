@@ -90,7 +90,12 @@ struct ChatInputView: View {
                 // ~5pt по бокам — lineFragmentPadding), которые SwiftUI не
                 // даёт убрать напрямую, поэтому компенсируем их отрицательным
                 // padding, чтобы текст встал вровень с плейсхолдером.
-                ZStack(alignment: .topLeading) {
+                // alignment: .leading (а не .topLeading!) — иначе плейсхолдер и
+                // измеряющий Text прижимаются к верхнему краю ZStack, и когда
+                // высота поля вырастает до минимума кнопок (32pt), текст всё
+                // равно остаётся у верха, а не по центру строки. .leading в
+                // SwiftUI центрует по вертикали и прижимает по левому краю.
+                ZStack(alignment: .leading) {
                     Text(text.isEmpty ? " " : text)
                         .font(.bleyzosBody)
                         .fontWeight(.regular)
